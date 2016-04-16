@@ -6,17 +6,20 @@ import java.util.*;
 public class Peer {
 
 	private static String hostName; 
-	private static int portNum;
-	private static List<Integer> rfcs = new ArrayList<Integer>();
-	public static void setHostInfo(String hn, int pn) {
+	private static String portNum;
+	private static List<PeerRFC> rfcs = new ArrayList<PeerRFC>();
+	private static String versionNumber = "P2P-CI/1.0";
+	public static void setHostInfo(String hn, String pn) {
 		hostName = hn;
 		portNum = pn;
 	}
 	
 	public static void setRfcs(String rfcString) {
-		String[] rfcArr = rfcString.split(",");
+		String[] rfcArr = rfcString.split("\\|");
 		for(String s : rfcArr) {
-			rfcs.add(Integer.parseInt(s));
+			String n = s.split(",")[0];
+			String t = s.split(",")[1];
+			rfcs.add(new PeerRFC(t,n));
 		}
 	}
 	
@@ -24,12 +27,24 @@ public class Peer {
 		return hostName;
 	}
 
-	public static int getPortNum() {
+	public static String getPortNum() {
 		return portNum;
 	}
 	
-	public static List<Integer> getRfcs() {
+	public static List<PeerRFC> getRfcs() {
 		return rfcs;
+	}
+	
+	public static String createAddRequest() {
+		String req = "";
+		for(PeerRFC r : rfcs) {
+			req += ("ADD"+"\t"+r.rfcNum+"\t"+versionNumber+"\r\n");
+			req += ("Host:\t"+hostName+"\r\n");
+			req += ("Port:\t"+portNum+"\r\n");
+			req += ("Title:\t"+r.title+"\r\n");
+		}
+		System.out.println(req);
+		return req;
 	}
 	
 	public static void main(String[] args) {
@@ -37,7 +52,7 @@ public class Peer {
 		int port = 7734;
 		//Get input values.
 		String hostName = args[0];
-		int portNum = Integer.parseInt(args[1]);
+		String portNum = args[1];
 		String rfcString = args[2];
 		//Initialize client variables.
 		setHostInfo(hostName, portNum);
@@ -51,7 +66,8 @@ public class Peer {
 			OutputStream outToServer = client.getOutputStream();
 			DataOutputStream out = new DataOutputStream(outToServer);
 			//out.writeUTF("Hello from " + client.getLocalSocketAddress());// Hello from 127.0.0.1:54617
-			out.writeInt(getPortNum());
+			String req = createAddRequest();
+			out.writeUTF(req);
 			
 			InputStream inFromServer = client.getInputStream();
 			DataInputStream in = new DataInputStream(inFromServer);
@@ -60,5 +76,14 @@ public class Peer {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+}
+
+class PeerRFC{
+	String title;
+	String rfcNum;
+	public PeerRFC(String t, String num) {
+		title = t;
+		rfcNum = num;
 	}
 }

@@ -43,11 +43,11 @@ public class Peer {
 			req += ("Port:\t"+portNum+"\r\n");
 			req += ("Title:\t"+r.title+"\r\n");
 		}
-		System.out.println(req);
+		//System.out.println(req);
 		return req;
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		String serverName = "127.0.0.1";
 		int port = 7734;
 		//Get input values.
@@ -71,8 +71,27 @@ public class Peer {
 			
 			InputStream inFromServer = client.getInputStream();
 			DataInputStream in = new DataInputStream(inFromServer);
-			System.out.println("Server says " + in.readUTF());// Thank you for connecting to 127.0.0.1:7734
+			String response = in.readUTF();
+			System.out.println("Server says\n" + response);
+			in.close();
 			client.close();
+			
+			System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST");
+			Scanner sc = new Scanner(System.in);
+			int option = sc.nextInt();
+			sc.close();
+			switch(option) {
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
+				default:
+					
+			}
+			
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

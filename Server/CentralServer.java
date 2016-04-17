@@ -51,7 +51,7 @@ class ChildThread extends Thread {
 	DataInputStream in;
 	Socket ClientSocket;
 	DataOutputStream out;
-	String version;
+	String version = "P2P-CI/1.0";
 //	out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress() + "\nGoodbye!");
 	public ChildThread(Socket cSocket, List<PeerInfo> pl, List<RFC> aRFCs) {
 		ClientSocket = cSocket;
@@ -64,7 +64,6 @@ class ChildThread extends Thread {
 			out = new DataOutputStream(ClientSocket.getOutputStream());
 			while (true) {
 				try {
-					
 					String req = in.readUTF();
 					System.out.println("Request received is this:\n"+req);
 					String reqType = req.split("\\t")[0];
@@ -73,13 +72,16 @@ class ChildThread extends Thread {
 						handleNewClient(req);
 						break;
 					} else if(reqType.equals("LOOKUP")) {
-						
+						handleLookUpRequest(req);
+						break;
 					} else if(reqType.equals("LIST")) {
-						
+						handleListRequest(req);
+						break;
 					} else if(reqType.equals("EXIT")) {
-						
+						handleExitRequest(req);
+						break;
 					} else {
-						System.out.println("200");
+						System.out.println("Wrong request");//TODO
 					}
 				} catch (SocketTimeoutException s) {
 					System.out.println("Socket timed out!");
@@ -102,10 +104,60 @@ class ChildThread extends Thread {
 		
 	}
 	
+	public void handleListRequest(String req) {
+		
+	}
+	
+	public void handleExitRequest(String req) {
+		
+	}
+	
+	public void handleLookUpRequest(String req) {
+		String[] lines = req.split("\\n");
+		String hostName = lines[1].split("\\t")[1].trim();
+		String version = lines[0].split("\\t")[2].trim();
+		int num = Integer.parseInt(lines[0].split("\\t")[1].split(" ")[1].trim());
+		int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
+		String title = lines[3].split("\\t")[1].trim();
+		
+		List<String> hostNames = new ArrayList<String>();
+		List<PeerInfo> hostNameWithPort = new ArrayList<PeerInfo>();
+		for(int i = 0; i < availableRFCs.size(); i++){
+			if(availableRFCs.get(i).num == num && availableRFCs.get(i).title.equals(title)) {
+				hostNames.add(availableRFCs.get(i).hostName);
+			}
+		}
+		for(int i = 0; i < hostNames.size(); i++) {
+			for(int j = 0; j < peerList.size(); j++) {
+				if(hostNames.get(i).equals(peerList.get(j).hostName)) {
+					hostNameWithPort.add(new PeerInfo(peerList.get(j).hostName,peerList.get(j).portNum));
+				}
+			}
+		}
+		try {
+			String res = createLookUpResponse(hostNameWithPort, num, title);
+			out.writeUTF(res);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	public String createLookUpResponse(List<PeerInfo> hostNameWithPort, int rfcNum, String rfcTitle) {
+		String res = "";
+		res += version+"\t200\tOK\r\n";
+		for(int i = 0; i < hostNameWithPort.size(); i++) {
+			res += "RFC "+rfcNum+"\t"+rfcTitle+"\t"+hostNameWithPort.get(i).hostName+"\t"+hostNameWithPort.get(i).portNum+"\r\n";
+		}
+		return res;
+	}
+	
 	public void handleNewClient(String req) {
 		String[] lines = req.split("\\n");
 		String hostName = lines[1].split("\\t")[1].trim();
-		version = lines[0].split("\\t")[2].trim();
+		String version = lines[0].split("\\t")[2].trim();
 		int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
 		peerList.add(new PeerInfo(hostName,portNum));
 		int count = lines.length/4;
@@ -128,13 +180,15 @@ class ChildThread extends Thread {
 			e.printStackTrace();
 		}
 		
-//		for(int i = 0; i < availableRFCs.size();i++) {
-//			if(i == 0) {
-//				System.out.println(peerList.get(i).hostName+" "+peerList.get(i).portNum);
-//			}
-//			
-//			System.out.println(availableRFCs.get(i).num+" "+availableRFCs.get(i).hostName+" "+availableRFCs.get(i).title);
-//		}
+		System.out.println("\nAvailable RFCs:\n");
+		for(int i = 0; i < availableRFCs.size(); i++) {
+			System.out.println(availableRFCs.get(i).num+" "+availableRFCs.get(i).hostName+" "+availableRFCs.get(i).title);
+		}
+		
+		System.out.println("\nAvailable Peers:\n");
+		for(int i = 0; i < peerList.size(); i++) {
+			System.out.println(peerList.get(i).hostName+" "+peerList.get(i).portNum);
+		}
 		
 	}
 	

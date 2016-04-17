@@ -49,7 +49,7 @@ public class Peer {
 	
 	public static String createLookupRequest(int rfcNum, String rfcTitle) {
 		String req = "";
-		req += ("LOOKUP"+"\t"+rfcNum+"\t"+versionNumber+"\r\n");
+		req += ("LOOKUP"+"\tRFC "+rfcNum+"\t"+versionNumber+"\r\n");
 		req += ("Host:\t"+hostName+"\r\n");
 		req += ("Port:\t"+portNum+"\r\n");
 		req += ("Title:\t"+rfcTitle+"\r\n");
@@ -127,16 +127,18 @@ public class Peer {
 			client.close();
 			/*************************************SERVER CONNECTION INITIALIZATION END***************************************/
 			
-			System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST\n 3. CLOSE CONNECTION\n 4. EXIT");
-			Scanner sc = new Scanner(System.in);
-			int option = sc.nextInt();
-			
-			while(option != 4) {
+			int option;
+			Scanner sc;
+			do {
+				System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST\n 3. CLOSE CONNECTION\n 4. EXIT");
+				sc = new Scanner(System.in);
+				option = sc.nextInt();
 				switch(option) {
 					case 1:
 						System.out.println("Enter the RFC Number you want to lookup:");
 						int rfcNum = sc.nextInt();
 						System.out.println("Enter the RFC Title:");
+						sc.nextLine();
 						String rfcTitle = sc.nextLine();
 						client = new Socket(serverName, port);
 						outToServer = client.getOutputStream();
@@ -186,7 +188,7 @@ public class Peer {
 					System.out.println("Connection closed with server.");
 					break;
 				}
-			}
+			}while(option != 4);
 			sc.close();
 		} catch (IOException e) {
 			e.printStackTrace();

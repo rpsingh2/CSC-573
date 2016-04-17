@@ -1,1 +1,1 @@
-RFC 23,Teiswi|RFC 19,uniswi
+RFC 23,teiswi|RFC 19,uniswi

@@ -122,7 +122,9 @@ public class Peer {
 			inFromServer = client.getInputStream();
 			in = new DataInputStream(inFromServer);
 			String response = in.readUTF();
+			System.out.println("==================================");
 			System.out.println("Server says\n" + response);
+			System.out.println("==================================");
 			in.close();
 			client.close();
 			/*************************************SERVER CONNECTION INITIALIZATION END***************************************/
@@ -180,6 +182,8 @@ public class Peer {
 						System.out.println("Server says\n" + respo);
 						in.close();
 						client.close();
+						break;
+					case 4:
 						break;
 					default:
 						System.out.println("Wrong Choice, try again");

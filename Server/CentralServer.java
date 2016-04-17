@@ -32,7 +32,6 @@ public class CentralServer {
 		final int port = 7734;
 		try {
 			serverSocket = new ServerSocket(port);
-			//serverSocket.setSoTimeout(100000);// SO_TIMEOUT is the timeout that a read() call will block
 			System.out.println("Server listening on port: "+ serverSocket.getLocalPort()+"...");
 			while(true) {
 				ClientSocket = serverSocket.accept();
@@ -52,7 +51,6 @@ class ChildThread extends Thread {
 	Socket ClientSocket;
 	DataOutputStream out;
 	String version = "P2P-CI/1.0";
-//	out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress() + "\nGoodbye!");
 	public ChildThread(Socket cSocket, List<PeerInfo> pl, List<RFC> aRFCs) {
 		ClientSocket = cSocket;
 		peerList = pl;
@@ -67,21 +65,32 @@ class ChildThread extends Thread {
 					String req = in.readUTF();
 					System.out.println("Request received is this:\n"+req);
 					String reqType = req.split("\\t")[0];
-
-					if(reqType.equals("ADD")) {
-						handleNewClient(req);
-						break;
-					} else if(reqType.equals("LOOKUP")) {
-						handleLookUpRequest(req);
-						break;
-					} else if(reqType.equals("LIST")) {
-						handleListRequest(req);
-						break;
-					} else if(reqType.equals("EXIT")) {
-						handleExitRequest(req);
-						break;
+					String firstLine = req.split("\\n")[0];
+					String[] wordsInFirstLine = firstLine.split("\\t");
+					String ver = wordsInFirstLine[wordsInFirstLine.length-1].trim();
+					System.out.println("Req Version is this "+ver);
+					if(ver.equals(version)) {
+						if(reqType.equals("ADD")) {
+							handleNewClient(req);
+							break;
+						} else if(reqType.equals("LOOKUP")) {
+							handleLookUpRequest(req);
+							break;
+						} else if(reqType.equals("LIST")) {
+							handleListRequest(req);
+							break;
+						} else if(reqType.equals("EXIT")) {
+							handleExitRequest(req);
+							break;
+						} else {
+							System.out.println("Error: Wrong request");
+							handleBadRequest(req);
+							break;
+						}
 					} else {
-						System.out.println("Wrong request");//TODO
+						System.out.println("Error: Version mismatch");
+						handleVersionMismatch(req);
+						break;
 					}
 				} catch (SocketTimeoutException s) {
 					System.out.println("Socket timed out!");
@@ -104,92 +113,147 @@ class ChildThread extends Thread {
 		
 	}
 	
-	public void handleListRequest(String req) {
-		
-	}
-	
-	public void handleExitRequest(String req) {
-		
-	}
-	
-	public void handleLookUpRequest(String req) {
-		String[] lines = req.split("\\n");
-		String hostName = lines[1].split("\\t")[1].trim();
-		String version = lines[0].split("\\t")[2].trim();
-		int num = Integer.parseInt(lines[0].split("\\t")[1].split(" ")[1].trim());
-		int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
-		String title = lines[3].split("\\t")[1].trim();
-		
-		List<String> hostNames = new ArrayList<String>();
-		List<PeerInfo> hostNameWithPort = new ArrayList<PeerInfo>();
-		for(int i = 0; i < availableRFCs.size(); i++){
-			if(availableRFCs.get(i).num == num && availableRFCs.get(i).title.equals(title)) {
-				hostNames.add(availableRFCs.get(i).hostName);
-			}
-		}
-		for(int i = 0; i < hostNames.size(); i++) {
-			for(int j = 0; j < peerList.size(); j++) {
-				if(hostNames.get(i).equals(peerList.get(j).hostName)) {
-					hostNameWithPort.add(new PeerInfo(peerList.get(j).hostName,peerList.get(j).portNum));
-				}
-			}
-		}
-		try {
-			String res = createLookUpResponse(hostNameWithPort, num, title);
-			out.writeUTF(res);
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-	}
-	
-	public String createLookUpResponse(List<PeerInfo> hostNameWithPort, int rfcNum, String rfcTitle) {
-		String res = "";
-		res += version+"\t200\tOK\r\n";
-		for(int i = 0; i < hostNameWithPort.size(); i++) {
-			res += "RFC "+rfcNum+"\t"+rfcTitle+"\t"+hostNameWithPort.get(i).hostName+"\t"+hostNameWithPort.get(i).portNum+"\r\n";
-		}
-		return res;
-	}
-	
+	@SuppressWarnings("unused")
 	public void handleNewClient(String req) {
-		String[] lines = req.split("\\n");
-		String hostName = lines[1].split("\\t")[1].trim();
-		String version = lines[0].split("\\t")[2].trim();
-		int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
-		peerList.add(new PeerInfo(hostName,portNum));
-		int count = lines.length/4;
-		List<RFC> clientRFCs = new ArrayList<RFC>();
-		for(int i = 0; i < count; i++) {
-			String line1 = lines[i*4];
-			String line4 = lines[i*4+3];
-			int num = Integer.parseInt(line1.split("\\t")[1].split(" ")[1].trim());
-			String title = line4.split("\\t")[1].trim();
-			availableRFCs.add(new RFC(num, title, hostName));
-			clientRFCs.add(new RFC(num, title, hostName));
-		}
-		
 		try {
+			String[] lines = req.split("\\n");
+			String hostName = lines[1].split("\\t")[1].trim();
+			String version = lines[0].split("\\t")[2].trim();
+			int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
+			peerList.add(new PeerInfo(hostName,portNum));
+			int count = lines.length/4;
+			List<RFC> clientRFCs = new ArrayList<RFC>();
+			for(int i = 0; i < count; i++) {
+				String line1 = lines[i*4];
+				String line4 = lines[i*4+3];
+				int num = Integer.parseInt(line1.split("\\t")[1].split(" ")[1].trim());
+				String title = line4.split("\\t")[1].trim();
+				availableRFCs.add(new RFC(num, title, hostName));
+				clientRFCs.add(new RFC(num, title, hostName));
+			}
 			String res = createAddResponse(clientRFCs, portNum);
 			out.writeUTF(res);
 			
-		} catch (IOException e) {
+			System.out.println("\n***************************************Available RFCs:***************************************\n");
+			for(int i = 0; i < availableRFCs.size(); i++) {
+				System.out.println(availableRFCs.get(i).num+" "+availableRFCs.get(i).hostName+" "+availableRFCs.get(i).title);
+			}
+			System.out.println("\n***************************************Available Peers:***************************************\n");
+			for(int i = 0; i < peerList.size(); i++) {
+				System.out.println(peerList.get(i).hostName+" "+peerList.get(i).portNum);
+			}
+			System.out.println("\n**********************************************************************************************\n");
+			
+		}catch (ArrayIndexOutOfBoundsException e1) {
+			handleBadRequest(req);
+			e1.printStackTrace();
+		}catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		System.out.println("\nAvailable RFCs:\n");
-		for(int i = 0; i < availableRFCs.size(); i++) {
-			System.out.println(availableRFCs.get(i).num+" "+availableRFCs.get(i).hostName+" "+availableRFCs.get(i).title);
+	}
+	
+	@SuppressWarnings("unused")
+	public void handleLookUpRequest(String req) {
+		try {
+			String[] lines = req.split("\\n");
+			String hostName = lines[1].split("\\t")[1].trim();
+			String version = lines[0].split("\\t")[2].trim();
+			int num = Integer.parseInt(lines[0].split("\\t")[1].split(" ")[1].trim());
+			int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
+			String title = lines[3].split("\\t")[1].trim();
+			
+			List<String> hostNames = new ArrayList<String>();
+			List<PeerInfo> hostNameWithPort = new ArrayList<PeerInfo>();
+			for(int i = 0; i < availableRFCs.size(); i++){
+				if(availableRFCs.get(i).num == num && availableRFCs.get(i).title.equals(title)) {
+					hostNames.add(availableRFCs.get(i).hostName);
+				}
+			}
+			for(int i = 0; i < hostNames.size(); i++) {
+				for(int j = 0; j < peerList.size(); j++) {
+					if(hostNames.get(i).equals(peerList.get(j).hostName)) {
+						hostNameWithPort.add(new PeerInfo(peerList.get(j).hostName,peerList.get(j).portNum));
+					}
+				}
+			}
+			if(hostNameWithPort.size() == 0) {
+				handleNotFound(req);
+				System.out.println("No such RFC found in the system");
+			} else {
+				String res = createLookUpResponse(hostNameWithPort, num, title);
+				out.writeUTF(res);
+			}
+			
+		}catch (ArrayIndexOutOfBoundsException e1) {
+			handleBadRequest(req);
+			e1.printStackTrace();
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
-		System.out.println("\nAvailable Peers:\n");
-		for(int i = 0; i < peerList.size(); i++) {
-			System.out.println(peerList.get(i).hostName+" "+peerList.get(i).portNum);
+	}
+	
+	@SuppressWarnings("unused")
+	public void handleListRequest(String req) {
+		try {
+			String[] lines = req.split("\\n");
+			String hostName = lines[1].split("\\t")[1].trim();
+			String version = lines[0].split("\\t")[1].trim();
+			int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
+			String res = createListResponse();
+			out.writeUTF(res);
+			
+		}catch (ArrayIndexOutOfBoundsException e1) {
+			handleBadRequest(req);
+			e1.printStackTrace();
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
+	}
+	
+	@SuppressWarnings("unused")
+	public void handleExitRequest(String req) {
+		try {
+			String[] lines = req.split("\\n");
+			String hostName = lines[1].split("\\t")[1].trim();
+			String version = lines[0].split("\\t")[1].trim();
+			int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
+			for(int i = 0; i < availableRFCs.size(); i++) {
+				RFC rfc = availableRFCs.get(i);
+				if(rfc.hostName.equals(hostName)) {
+					availableRFCs.remove(i);
+					i = 0;
+				}
+			}
+			for(int i = 0; i < peerList.size(); i++) {
+				PeerInfo pi = peerList.get(i);
+				if(pi.hostName.equals(hostName) && pi.portNum == portNum) {
+					peerList.remove(i);
+					i = 0;
+				}
+			}
+			String res = createExitResponse();
+			out.writeUTF(res);
+			
+			System.out.println("\n***************************************Available RFCs:***************************************\n");
+			for(int i = 0; i < availableRFCs.size(); i++) {
+				System.out.println(availableRFCs.get(i).num+" "+availableRFCs.get(i).hostName+" "+availableRFCs.get(i).title);
+			}
+			System.out.println("\n***************************************Available Peers:***************************************\n");
+			for(int i = 0; i < peerList.size(); i++) {
+				System.out.println(peerList.get(i).hostName+" "+peerList.get(i).portNum);
+			}
+			System.out.println("\n**********************************************************************************************\n");
+			
+		}catch (ArrayIndexOutOfBoundsException e1) {
+			handleBadRequest(req);
+			e1.printStackTrace();
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public String createAddResponse(List<RFC> clientRFCs, int portNum) {
@@ -201,40 +265,63 @@ class ChildThread extends Thread {
 		}
 		return res;
 	}
+	
+	public String createLookUpResponse(List<PeerInfo> hostNameWithPort, int rfcNum, String rfcTitle) {
+		String res = "";
+		res += version+"\t200\tOK\r\n";
+		for(int i = 0; i < hostNameWithPort.size(); i++) {
+			res += "RFC "+rfcNum+"\t"+rfcTitle+"\t"+hostNameWithPort.get(i).hostName+"\t"+hostNameWithPort.get(i).portNum+"\r\n";
+		}
+		return res;
+	}
+	
+	public String createListResponse() {
+		String res = "";
+		res += version+"\t200\tOK\r\n";
+		for(int i = 0; i < availableRFCs.size(); i++) {
+			RFC rfc = availableRFCs.get(i);
+			res += "RFC "+rfc.num+"\t"+rfc.title+"\t"+rfc.hostName+"\t"+"\r\n";
+		}
+		return res;
+	}
+	
+	public String createExitResponse() {
+		String res = "";
+		res += version+"\t200\tOK\r\n";
+		return res;
+	}
+	
+	public void handleBadRequest(String req) {
+		try {
+			String res = "";
+			res += version+"\t400\tBad Request\r\n";
+			out.writeUTF(res);
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void handleVersionMismatch(String req) {
+		try {
+			String res = "";
+			res += version+"\t505\tP2P-CI Version Not Supported\r\n";
+			out.writeUTF(res);
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}	
+	}
+	
+	public void handleNotFound(String req) {
+		try {
+			String res = "";
+			res += version+"\t404\tNot Found\r\n";
+			out.writeUTF(res);
+		}catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}	
+	}
+	
 }
-
-//class MasterThread extends Thread {
-//	private ServerSocket serverSocket;
-//
-//	/******Server Initialization************/
-//	
-//	public MasterThread(int port) throws IOException {
-//		serverSocket = new ServerSocket(port);
-//		serverSocket.setSoTimeout(100000);// SO_TIMEOUT is the timeout that a read() call will block
-//	}
-//	
-//	/***************************************/
-//	
-//	public void run() {
-//		
-//		while (true) {
-//			try {
-//				System.out.println("Waiting for client on port " + serverSocket.getLocalPort() + "...");
-//				Socket server = serverSocket.accept();// Listen to connection requests from client.
-//
-//				System.out.println("Just connected to " + server.getRemoteSocketAddress());// Once a client connects
-//				DataInputStream in = new DataInputStream(server.getInputStream());
-//				System.out.println("Client upload port number is "+in.readInt());
-//				DataOutputStream out = new DataOutputStream(server.getOutputStream());
-//				out.writeUTF("Thank you for connecting to " + server.getLocalSocketAddress() + "\nGoodbye!");
-//				server.close();
-//			} catch (SocketTimeoutException s) {
-//				System.out.println("Socket timed out!");
-//				break;
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//				break;
-//			}
-//		}
-//	}
-//}

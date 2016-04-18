@@ -220,20 +220,23 @@ class ChildThread extends Thread {
 			String hostName = lines[1].split("\\t")[1].trim();
 			String version = lines[0].split("\\t")[1].trim();
 			int portNum = Integer.parseInt(lines[2].split("\\t")[1].trim());
-			for(int i = 0; i < availableRFCs.size(); i++) {
-				RFC rfc = availableRFCs.get(i);
+			
+			Iterator<RFC> it = availableRFCs.iterator();
+			while(it.hasNext()) {
+				RFC rfc = (RFC) it.next();
 				if(rfc.hostName.equals(hostName)) {
-					availableRFCs.remove(i);
-					i = 0;
+					it.remove();
 				}
 			}
-			for(int i = 0; i < peerList.size(); i++) {
-				PeerInfo pi = peerList.get(i);
+			
+			Iterator<PeerInfo> it1 = peerList.iterator();
+			while(it1.hasNext()) {
+				PeerInfo pi = (PeerInfo) it1.next();
 				if(pi.hostName.equals(hostName) && pi.portNum == portNum) {
-					peerList.remove(i);
-					i = 0;
+					it1.remove();
 				}
 			}
+			
 			String res = createExitResponse();
 			out.writeUTF(res);
 			

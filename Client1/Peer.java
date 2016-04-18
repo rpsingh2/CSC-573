@@ -15,10 +15,10 @@ public class Peer {
 	}
 	
 	public static void setRfcs(String rfcString) {
-		String[] rfcArr = rfcString.split("\\|");
+		String[] rfcArr = rfcString.split("\\n");
 		for(String s : rfcArr) {
 			String n = s.split(",")[0];
-			String t = s.split(",")[1];
+			String t = s.split(",")[1].trim();
 			rfcs.add(new PeerRFC(t,n));
 		}
 	}
@@ -79,6 +79,31 @@ public class Peer {
 		return req;
 	}
 	
+	public static void writeRFCToFile(String req, String fileName){
+		if(req.split("\\n")[0].split("\\t")[1].trim().equals("200")) {
+			BufferedWriter writer = null;
+	        try {
+	            //create a temporary file
+	            File rfcFile = new File(fileName);
+
+	            writer = new BufferedWriter(new FileWriter(rfcFile, true));
+	            String rfcInfo = req.split("\\n")[6];
+	            String rfcNum = rfcInfo.split("\\t")[0].split(" ")[1];
+	            String rfcTitle = rfcInfo.split("\\t")[1].trim();
+	            writer.write("RFC "+rfcNum+", ");
+	            writer.write(rfcTitle);
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        } finally {
+	            try {
+	                // Close the writer regardless of what happens...
+	                writer.close();
+	            } catch (Exception e) {
+	            }
+	        }
+		}
+	}
+	
 	public static void main(String[] args) throws IOException {
 		String serverName = "127.0.0.1";
 		int port = 7734;
@@ -90,11 +115,16 @@ public class Peer {
 		DataInputStream in;
 		
 		//Get input values.
-		String hostName = args[0];
-		String portNum = args[1];
-		
+		System.out.println("Enter Host Name:");
+		Scanner sc = new Scanner(System.in);
+		String hostName = sc.nextLine();
+		System.out.println("Enter Upload Port:");
+		String portNum = sc.nextLine();
+		System.out.println("Enter RFC file:");
+		String rfcFile = sc.nextLine();
+
 		/******************************************READ RFCs FROM TEXT FILE******************************************/
-		BufferedReader br = new BufferedReader(new FileReader(args[2]));
+		BufferedReader br = new BufferedReader(new FileReader(rfcFile));
 		String rfcString = "";
 		try {
 	        StringBuilder sb = new StringBuilder();
@@ -116,7 +146,7 @@ public class Peer {
 		//Initialize RFCs for client.
 		setRfcs(rfcString);
 		//Start Upload Server
-		UploadServer us = new UploadServer(hostName, portNum, rfcs, versionNumber, args[2]);
+		UploadServer us = new UploadServer(hostName, portNum, versionNumber, rfcFile);
 		us.start();
 		
 		
@@ -143,10 +173,8 @@ public class Peer {
 			/*************************************SERVER CONNECTION INITIALIZATION END***************************************/
 			
 			int option;
-			Scanner sc;
 			do {
 				System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST\n 3. CLOSE CONNECTION\n 4. SEND REQUEST TO PEER\n 5. EXIT");
-				sc = new Scanner(System.in);
 				option = sc.nextInt();
 				switch(option) {
 					case 1:
@@ -221,6 +249,7 @@ public class Peer {
 						in = new DataInputStream(inFromServer);
 						String respon= in.readUTF();
 						System.out.println("Server says\n" + respon);
+						writeRFCToFile(respon, rfcFile);
 						in.close();
 						client.close();
 						break;

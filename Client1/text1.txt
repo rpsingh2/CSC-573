@@ -1,1 +1,3 @@
-RFC 10,daswi|RFC 2,dooji|RFC 15,pandharwi
+RFC 10, RFC TEN
+RFC 2, RFC TWO
+RFC 15, RFC FIFTEEN

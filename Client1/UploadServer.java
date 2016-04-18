@@ -4,14 +4,12 @@ import java.util.*;
 
 public class UploadServer extends Thread {
 	String hostName, uploadPort, versionNumber, fileName;
-	List<PeerRFC> rfcs;
 	final String p2pVersion = "P2P-CI/1.0";
 	private static ServerSocket uploadServerSocket;
 	private static Socket ClientSocket;
-	public UploadServer(String hostName, String uploadPort, List<PeerRFC> rfcs, String versionNumber, String fileName){
+	public UploadServer(String hostName, String uploadPort, String versionNumber, String fileName){
 		this.hostName = hostName;
 		this.uploadPort = uploadPort;
-		this.rfcs = rfcs;
 		this.versionNumber = versionNumber;
 		this.fileName = fileName;
 	}
@@ -57,16 +55,24 @@ class ChildProcess extends Thread {
 					System.out.println("Request received is this:\n"+req);
 					String reqType = req.split("\\t")[0];
 					String firstLine = req.split("\\n")[0];
+					String secondLine = req.split("\\n")[1];
 					String[] wordsInFirstLine = firstLine.split("\\t");
 					String ver = wordsInFirstLine[wordsInFirstLine.length-1].trim();
 					int requestedRFC = Integer.parseInt(wordsInFirstLine[1].split(" ")[1].trim());
+					String hName = secondLine.split("\\t")[1].trim();
 					System.out.println("Req Version is this "+ver);
 					if(ver.equals(p2pVersion)) {
-						if(reqType.equals("GET")) {
-							handleGetRequest(req, requestedRFC);
-							break;
+						if(hName.equals(hostName)) {
+							if(reqType.equals("GET")) {
+								handleGetRequest(req, requestedRFC);
+								break;
+							} else {
+								System.out.println("Error: Wrong request");
+								handleBadRequest(req);
+								break;
+							}
 						} else {
-							System.out.println("Error: Wrong request");
+							System.out.println("Error: HostName mismatch");
 							handleBadRequest(req);
 							break;
 						}
@@ -132,7 +138,7 @@ class ChildProcess extends Thread {
 			res += "Content-Length:\t"+file.length()+"\r\n";
 			res += "Content-Type: text/text\r\n";
 			
-			String[] rfcs = rfcString.split("\\|");
+			String[] rfcs = rfcString.split("\\n");
 			for(String rfc: rfcs) {
 				int rfcNum = Integer.parseInt(rfc.split(",")[0].split(" ")[1]);
 				String rfcTitle = rfc.split(",")[1].trim();

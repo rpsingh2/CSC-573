@@ -43,7 +43,6 @@ public class Peer {
 			req += ("Port:\t"+portNum+"\r\n");
 			req += ("Title:\t"+r.title+"\r\n");
 		}
-		//System.out.println(req);
 		return req;
 	}
 	
@@ -72,6 +71,14 @@ public class Peer {
 		return req;
 	}
 	
+	public static String createDownloadRequest(int rfcNumber, String host, int hostPort) {
+		String req = "";
+		req += ("GET"+"\tRFC "+rfcNumber+"\t"+versionNumber+"\r\n");
+		req += ("Host:\t"+host+"\r\n");
+		req += ("OS:\t"+System.getProperty("os.name")+"\r\n");
+		return req;
+	}
+	
 	public static void main(String[] args) throws IOException {
 		String serverName = "127.0.0.1";
 		int port = 7734;
@@ -85,6 +92,7 @@ public class Peer {
 		//Get input values.
 		String hostName = args[0];
 		String portNum = args[1];
+		
 		/******************************************READ RFCs FROM TEXT FILE******************************************/
 		BufferedReader br = new BufferedReader(new FileReader(args[2]));
 		String rfcString = "";
@@ -107,6 +115,11 @@ public class Peer {
 		setHostInfo(hostName, portNum);
 		//Initialize RFCs for client.
 		setRfcs(rfcString);
+		//Start Upload Server
+		UploadServer us = new UploadServer(hostName, portNum, rfcs, versionNumber, args[2]);
+		us.start();
+		
+		
 		try {
 			System.out.println("Connecting to " + serverName + " on port " + port);// print statement
 			
@@ -132,7 +145,7 @@ public class Peer {
 			int option;
 			Scanner sc;
 			do {
-				System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST\n 3. CLOSE CONNECTION\n 4. EXIT");
+				System.out.println("Enter option:\n 1. LOOKUP\n 2. LIST\n 3. CLOSE CONNECTION\n 4. SEND REQUEST TO PEER\n 5. EXIT");
 				sc = new Scanner(System.in);
 				option = sc.nextInt();
 				switch(option) {
@@ -151,7 +164,9 @@ public class Peer {
 						inFromServer = client.getInputStream();
 						in = new DataInputStream(inFromServer);
 						String res= in.readUTF();
+						System.out.println("==================================");
 						System.out.println("Server says\n" + res);
+						System.out.println("==================================");
 						in.close();
 						client.close();
 						break;
@@ -165,7 +180,9 @@ public class Peer {
 						inFromServer = client.getInputStream();
 						in = new DataInputStream(inFromServer);
 						String resp= in.readUTF();
+						System.out.println("==================================");
 						System.out.println("Server says\n" + resp);
+						System.out.println("==================================");
 						in.close();
 						client.close();
 						break;
@@ -179,11 +196,35 @@ public class Peer {
 						inFromServer = client.getInputStream();
 						in = new DataInputStream(inFromServer);
 						String respo = in.readUTF();
+						System.out.println("==================================");
 						System.out.println("Server says\n" + respo);
+						System.out.println("==================================");
 						in.close();
 						client.close();
 						break;
 					case 4:
+						System.out.println("Enter the RFC Number you want to download:");
+						int rfcNumber = sc.nextInt();
+						System.out.println("Enter the host Name you want to download from:");
+						sc.nextLine();
+						String host = sc.nextLine();
+						System.out.println("Enter the host Port you want to download from:");
+						//System.out.println(java.net.InetAddress.getLocalHost().getHostName());
+						int hostPort = sc.nextInt();
+						client = new Socket(serverName, hostPort);
+						outToServer = client.getOutputStream();
+						out = new DataOutputStream(outToServer);
+						String reqForDownload = createDownloadRequest(rfcNumber, host, hostPort);
+						out.writeUTF(reqForDownload);
+						//Read response
+						inFromServer = client.getInputStream();
+						in = new DataInputStream(inFromServer);
+						String respon= in.readUTF();
+						System.out.println("Server says\n" + respon);
+						in.close();
+						client.close();
+						break;
+					case 5:
 						break;
 					default:
 						System.out.println("Wrong Choice, try again");
@@ -192,7 +233,7 @@ public class Peer {
 					System.out.println("Connection closed with server.");
 					break;
 				}
-			}while(option != 4);
+			}while(option != 5);
 			sc.close();
 		} catch (IOException e) {
 			e.printStackTrace();
